@@ -1,64 +1,69 @@
+import featuretools as ft
 import json
-import nltk
-import numpy as np
 import pandas as pd
+import warnings
+import sys
 import matplotlib.pyplot as plt
-import string
 import sklearn
-import re
+import numpy as np
 
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
+from pandas.io.json import json_normalize
 
-wn = nltk.WordNetLemmatizer()
+def file_to_es(basefile):
+    with open(basefile) as f:
+        d = json.load(f)
 
-def to_pd_arr(fp):
-    tripreviews = open(fp).read()
+    restaurants = json_normalize(d['restaurants'])
 
-    parsed_json = json.loads(tripreviews)
-    holder_dict = {}
-    counter = 0
-    for rest in parsed_json['restaurants']:
-        for review in rest['reviews']:
-            holder_dict[counter] = {'title': review['review_title'], 'text': review['review_text'], 'date': review['review_date'], 'stars': review['review_rating'], 'price': rest['price']}
-            counter += 1
+    restaurants['id']=restaurants.index
 
-    new_df = pd.DataFrame.from_dict(holder_dict, orient='index')
+    # the pair of name, address forms a unique key for each restaurant.
+    unique_index = restaurants[['id','name','address']]
 
-    return new_df
+    restaurants = restaurants.drop(columns=['trip_advisor_url', 'name', 'country', 'locality', 'region', 'address', 'address_extended', 'reviews','tel', 'email', 'chain_name', 'fax', 'longitude', 'latitude', 'website','cuisine', 'hours.monday', 'hours.tuesday', 'hours.wednesday', 'hours.thursday', 'hours.friday', 'hours.saturday', 'hours.sunday'])
 
-def clean_tokens(textstr):
-    textstr = word_tokenize(textstr)
-    processed = [ch.lower() for ch in textstr if ch not in
-                                         set(string.punctuation).union(
-                                         set(stopwords.words('english')))]
-    processed = ['0' if re.search('[0-9]+', ch) else ch for ch in processed]
-    processed = [wn.lemmatize(w) for w in processed]
+    reviews = json_normalize(d['restaurants'], record_path='reviews', meta=['name', 'address'])
+    reviews['index']=reviews.index
 
-    return processed
+    reviews = reviews.merge(unique_index, how='left', on=['name', 'address'])
+    reviews = reviews.drop(columns=['name','address', 'review_url', 'review_website'])
+    reviews = reviews.rename(columns={"id": "restaurant_id"})
 
+    revs_types = {'review_title': ft.variable_types.Text,
+                  'review_rating': ft.variable_types.Categorical}
+
+    rest_types = {'rating': ft.variable_types.Categorical,
+                  'name': ft.variable_types.Text}
+
+
+    entities = {
+        "restaurants" : (restaurants, "id"),
+        "reviews" : (reviews, "index", None, revs_types)
+    }
+
+    relationships = [("restaurants", "id", "reviews", "restaurant_id")]
+
+
+    es = ft.EntitySet("es", entities, relationships)
+
+    es['reviews'].convert_variable_type('review_rating', ft.variable_types.Categorical)
+
+    es.add_interesting_values()
+
+    return es
 
 def plot_confusion_matrix(y_true, y_pred, classes,
-                          normalize=False,
-                          title=None,
                           cmap=plt.cm.Blues):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
     From: https://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html#sphx-glr-auto-examples-model-selection-plot-confusion-matrix-py
     """
-    if not title:
-        if normalize:
-            title = 'Normalized confusion matrix'
-        else:
-            title = 'Confusion matrix, without normalization'
+    title = 'Normalized confusion matrix'
 
     # Compute confusion matrix
     cm = sklearn.metrics.confusion_matrix(y_true, y_pred)
-    # Only use the labels that appear in the data
-
-    if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 
     fig, ax = plt.subplots()
     im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
@@ -72,17 +77,17 @@ def plot_confusion_matrix(y_true, y_pred, classes,
            ylabel='True label',
            xlabel='Predicted label')
 
+    ax.set_ylim(len(cm)-0.5, -0.5)
+
     # Rotate the tick labels and set their alignment.
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
              rotation_mode="anchor")
 
     # Loop over data dimensions and create text annotations.
-    fmt = '.2f' if normalize else 'd'
     thresh = cm.max() / 2.
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            ax.text(j, i, format(cm[i, j], fmt),
+            ax.text(j, i, format(cm[i, j], '.2f'),
                     ha="center", va="center",
                     color="white" if cm[i, j] > thresh else "black")
-    fig.tight_layout()
     return ax
