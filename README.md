@@ -12,9 +12,11 @@ In this tutorial, we show how [Featuretools](https://www.featuretools.com) can b
 
 ## Highlights
 
-* We create custom primitives to create structured data from unstructured, hard to parse, textual data
+* We use the nlp-primitives library to create structured data from unstructured, hard to parse, textual data
+* We acheive an accuracy rating 40% higher than the baseline
+* We use these primitives alongside Featuretools' `dfs` method to create as much information as possible from a dataset containing only two entities.
+* The `dfs` method stacks the default primitives on top of the nlp-primitives to create new, data-rich, features.
 * We build a pipeline that it can be reused for numerous NLP prediction problems (You can try this yourself!)
-* We use pretrained models as well as some self-trained models to get the highest accuracy possible on this limited dataset.
 
 ## Running the tutorial
 
@@ -33,9 +35,9 @@ In this tutorial, we show how [Featuretools](https://www.featuretools.com) can b
     
 3. Download the data
 
-    You can download the data directly from Kaggle [here](https://www.kaggle.com/jkgatt/restaurant-data-with-100-trip-advisor-reviews-each).
+    You can download the data directly from Kaggle [here](https://www.kaggle.com/jkgatt/restaurant-data-with-100-trip-advisor-reviews-each). Be sure to re-name it `reviews.json`, or change the file name in the tutorial.
 
-4. Run the [Tutorial](Tutorial.ipynb) using Jupyter
+4. Run the tutorial notebook, [Predict-Restaurant-Rating](predict-restaurant-rating.ipynb) using Jupyter
 
     ```
     jupyter notebook
