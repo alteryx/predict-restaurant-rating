@@ -10,7 +10,7 @@ In this tutorial, we show how [Featuretools](https://www.featuretools.com) can b
 
 ## Highlights
 
-* We use the nlp-primitives library to create structured data from unstructured, hard to parse, textual data
+* We use the nlp-primitives library to create structured data from unstructured, hard to parse, text data
 * We acheive an accuracy rating 40% higher than the baseline
 * We use these primitives alongside Featuretools' `dfs` method to create as much information as possible from a dataset containing only two entities.
 * The `dfs` method stacks the default primitives on top of the nlp-primitives to create new, data-rich, features.
